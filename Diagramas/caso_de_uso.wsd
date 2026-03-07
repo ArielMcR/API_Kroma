@@ -1,0 +1,141 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Super Admin" as SuperAdmin
+actor "Admin" as Admin
+actor "Supervisor" as Supervisor
+actor "Barbeiro" as Barbeiro
+actor "Cliente" as Cliente
+
+package "Gestão de Empresas" {
+  usecase "Gerenciar Empresas" as UC1
+  usecase "Gerenciar Planos" as UC2
+  usecase "Ativar/Desativar Empresa" as UC3
+}
+
+package "Gestão de Unidades" {
+  usecase "Gerenciar Unidades" as UC4
+  usecase "Visualizar Unidades" as UC5
+}
+
+package "Gestão de Usuários" {
+  usecase "Criar Usuários" as UC6
+  usecase "Editar Usuários" as UC7
+  usecase "Excluir Usuários" as UC8
+  usecase "Ativar/Desativar Usuários" as UC9
+  usecase "Atribuir Perfis" as UC10
+}
+
+package "Gestão de Clientes" {
+  usecase "Cadastrar Clientes" as UC11
+  usecase "Editar Clientes" as UC12
+  usecase "Excluir Clientes" as UC13
+  usecase "Visualizar Clientes" as UC14
+}
+
+package "Gestão de Serviços" {
+  usecase "Criar Serviços" as UC15
+  usecase "Editar Serviços" as UC16
+  usecase "Excluir Serviços" as UC17
+  usecase "Definir Preço e Duração" as UC18
+}
+
+package "Gestão de Agendamentos" {
+  usecase "Agendar Serviço" as UC19
+  usecase "Visualizar Agendamentos" as UC20
+  usecase "Cancelar Agendamento" as UC21
+  usecase "Atualizar Status" as UC22
+  usecase "Atribuir Profissional" as UC23
+}
+
+package "Gestão de Produtos" {
+  usecase "Gerenciar Produtos" as UC24
+  usecase "Controlar Estoque" as UC25
+  usecase "Definir Precificação" as UC26
+}
+
+package "Gestão de Vendas" {
+  usecase "Registrar Venda" as UC27
+  usecase "Adicionar Itens" as UC28
+  usecase "Visualizar Histórico" as UC29
+  usecase "Processar Pagamento" as UC30
+}
+
+package "Autenticação" {
+  usecase "Login" as UC31
+  usecase "Logout" as UC32
+}
+
+' Super Admin
+SuperAdmin --> UC1
+SuperAdmin --> UC2
+SuperAdmin --> UC3
+SuperAdmin --> UC4
+SuperAdmin --> UC6
+SuperAdmin --> UC7
+SuperAdmin --> UC8
+SuperAdmin --> UC9
+SuperAdmin --> UC10
+SuperAdmin --> UC31
+SuperAdmin --> UC32
+
+' Admin
+Admin --> UC4
+Admin --> UC6
+Admin --> UC7
+Admin --> UC8
+Admin --> UC9
+Admin --> UC10
+Admin --> UC11
+Admin --> UC12
+Admin --> UC13
+Admin --> UC15
+Admin --> UC16
+Admin --> UC17
+Admin --> UC18
+Admin --> UC24
+Admin --> UC25
+Admin --> UC26
+Admin --> UC29
+Admin --> UC31
+Admin --> UC32
+
+' Supervisor
+Supervisor --> UC5
+Supervisor --> UC11
+Supervisor --> UC12
+Supervisor --> UC13
+Supervisor --> UC14
+Supervisor --> UC19
+Supervisor --> UC20
+Supervisor --> UC21
+Supervisor --> UC22
+Supervisor --> UC23
+Supervisor --> UC24
+Supervisor --> UC25
+Supervisor --> UC27
+Supervisor --> UC28
+Supervisor --> UC29
+Supervisor --> UC30
+Supervisor --> UC31
+Supervisor --> UC32
+
+' Barbeiro
+Barbeiro --> UC14
+Barbeiro --> UC20
+Barbeiro --> UC22
+Barbeiro --> UC27
+Barbeiro --> UC28
+Barbeiro --> UC30
+Barbeiro --> UC31
+Barbeiro --> UC32
+
+' Cliente
+Cliente --> UC19
+Cliente --> UC20
+Cliente --> UC21
+Cliente --> UC31
+Cliente --> UC32
+
+@enduml

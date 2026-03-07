@@ -1,0 +1,19 @@
+token=Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwibm9lIjoiQWRtaW5pc3RyYWRvciIsImVtYWlsIjoiYWRtaW5AYmFyYmVhcmlhLmNvbSIsInNlbmhhSGFzaCI6IiQyYiQxMCQzbEU3Lnlpd0QwczM5bWhNMTNDMlMuLmlsZG14OG16b0Q4aVFRYTduY0NBNVMvb2Fpdk1YOXkiLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJlbXByZXNhSWQiOjEsInVuaWRhZGVJZCI6MSwiYXRpdm8iOnRydWUsInVzYXJpb0NyaWFkb3JJZCI6bnVsbCwiY3JlYXRlZEF0Ijoi2025-12-23T23:24:21.218Z\",\"dXBkYXRlZEF0Ijoi2025-12-23T23:24:21.218Z\",\"ZGVsZXRlZEF0IjpudWxsLCJzdWIiOjEsImlhdCI6MTc2NjUzMzEyNywiZXhwIjoxNzY2NjE5NTI3fQ.Ppi1YBN8oDVRTq3V6mkknMbD32NQX5yQs2VwYMKnHPg
+###
+
+## GET ALL USERS
+GET http://localhost:3000/users
+Authorization: Bearer token
+###
+
+## POST ONE USER
+POST http://localhost:3000/users
+Content-Type: application/json
+{
+    "nome": "John Doe",
+    "email": "john.doe@example.com",
+    "senhaHash": "password123",
+    "role": "SUPERVISOR",
+    "empresaId": 1,
+    "unidadeId": 1,
+}
