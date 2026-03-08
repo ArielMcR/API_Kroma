@@ -120,4 +120,11 @@ export class PrismaUserRepository implements UserRepository {
         if (!user) throw new HttpException('User not found', 404);
         return user as User | null;
     }
+
+    async getUserByName(name: string): Promise<User | null> {
+        const user = await this.prisma.user.findFirst({
+            where: { name, deletedAt: null, active: true }
+        });
+        return user as User | null;
+    }
 }

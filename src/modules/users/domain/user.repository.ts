@@ -23,4 +23,5 @@ export interface UserRepository {
     updateUser: (id: number, data: UpdateUserData) => Promise<Partial<User>>;
     deleteUser: (id: number, data: UserData) => Promise<void>;
     getUserByNameAndEmpresaId: (name: string, companyId: number, unitId: number) => Promise<User | null>;
+    getUserByName: (name: string) => Promise<User | null>;
 }

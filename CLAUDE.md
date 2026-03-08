@@ -98,9 +98,19 @@ O `RolesGuard` compara o nivel numerico do usuario com o minimo exigido pela rot
 ## Modulos Implementados
 
 ### auth
-- **POST /auth/login** — autentica por `name + password + companyId + unitId` (LocalStrategy), retorna JWT
-- `ValidateUserUseCase`: busca usuario por nome+empresa+unidade, compara senha com bcrypt
-- `LoginUseCase`: gera JWT com payload `{ id, name, email, role, companyId, unitId, sub }`
+
+**POST /auth/login** — sistema white-label, 3 fluxos:
+
+| Body | Quem | Resposta |
+|------|------|----------|
+| `{ name, password }` | Usuario comum | `{ access_token, company, unit }` — company/unit vinculados ao usuario |
+| `{ name, password }` | SUPER_ADMIN | `{ access_token, companies[] }` — token sem companyId/unitId, retorna todas as empresas com unidades |
+| `{ name, password, companyId, unitId }` | SUPER_ADMIN | `{ access_token, company, unit }` — token com contexto escolhido |
+
+- `LoginDto`: `name`, `password`, `companyId?`, `unitId?`
+- `ValidateUserUseCase`: busca usuario por `name` globalmente (sem filtro de empresa), valida senha com bcrypt
+- `LoginUseCase`: injeta `PrismaService`, determina fluxo pelo `role` e presenca de `companyId`/`unitId`. Payload do JWT: `{ sub, id, name, email, role, companyId, unitId }`
+- `LocalStrategy`: `usernameField: 'name'`, `passwordField: 'password'` (sem companyId/unitId)
 - `JwtStrategy`: extrai token do header `Authorization: Bearer`, popula `request.user`
 - `RolesGuard`: verifica hierarquia de roles via decorator `@Roles()`
 - `JwtAuthGuard`: guard registrado globalmente via `APP_GUARD` no `AppModule`. Respeita o decorator `@Public()` para rotas abertas
