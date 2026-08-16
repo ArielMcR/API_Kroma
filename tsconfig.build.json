@@ -1,4 +1,9 @@
 {
   "extends": "./tsconfig.json",
+  // Compila SO o `src`. Sem isto, os `jest.*.config.ts` e o `prisma/seeds.ts`
+  // da raiz entravam na compilacao, o TypeScript inferia a raiz do projeto como
+  // rootDir e a saida virava `dist/src/main.js` — enquanto `start:prod` aponta
+  // para `dist/main`. O seed nao perde nada: roda por ts-node, do fonte.
+  "include": ["src"],
   "exclude": ["node_modules", "test", "dist", "**/*spec.ts"]
 }

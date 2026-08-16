@@ -12,6 +12,7 @@ import { LocalStrategy } from './infra/strategy/local.strategy';
 import { JwtStrategy } from './infra/strategy/jwt.strategy';
 import { RolesGuard } from './infra/guards/roles.guard';
 import { PrismaModule } from '../prisma/prisma.module';
+import { obterJwtSecret } from './domain/jwt-secret';
 
 @Module({
   imports: [
@@ -20,7 +21,9 @@ import { PrismaModule } from '../prisma/prisma.module';
     PassportModule,
     PrismaModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'defaultSecret',
+      // Sem fallback: assinar com um segredo fixo do repositorio deixaria a
+      // API "funcionando" em producao com token forjavel por qualquer um.
+      secret: obterJwtSecret(),
       signOptions: { expiresIn: '1d' },
     }),
   ],
