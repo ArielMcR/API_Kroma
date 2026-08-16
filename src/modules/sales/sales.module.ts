@@ -9,14 +9,14 @@ import { FindAllSalesUseCase } from './useCases/find-all-sales.usecase';
 import { FindByIdSaleUseCase } from './useCases/find-by-id-sale.usecase';
 
 @Module({
-    controllers: [SalesController],
-    providers: [
-        CreateSaleUseCase,
-        DeleteSaleUseCase,
-        FindAllSalesUseCase,
-        FindByIdSaleUseCase,
-        { provide: 'SaleRepository', useClass: PrismaSalesRepository },
-    ],
-    imports: [PrismaModule, AuthModule],
+  controllers: [SalesController],
+  providers: [
+    CreateSaleUseCase,
+    DeleteSaleUseCase,
+    FindAllSalesUseCase,
+    FindByIdSaleUseCase,
+    { provide: 'SaleRepository', useClass: PrismaSalesRepository },
+  ],
+  imports: [PrismaModule, AuthModule],
 })
-export class SalesModule { }
+export class SalesModule {}

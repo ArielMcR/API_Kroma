@@ -17,8 +17,14 @@ import { AuthModule } from '../auth/auth.module';
     DeleteClientUseCase,
     FindAllClientsUseCase,
     FindUniqueClientUseCase,
-    { provide: "ClientRepository", useClass: PrismaClientsRepository }
+    { provide: 'ClientRepository', useClass: PrismaClientsRepository },
   ],
   imports: [PrismaModule, AuthModule],
+  // Consumidos pelo AssistantModule (Sprint 3): o use case para criar e o
+  // repositorio para o findByName da busca por nome falado.
+  exports: [
+    CreateClientUseCase,
+    { provide: 'ClientRepository', useClass: PrismaClientsRepository },
+  ],
 })
-export class ClientsModule { }
+export class ClientsModule {}

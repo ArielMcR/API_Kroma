@@ -1,22 +1,18 @@
-import { IsNotEmpty, IsNumber } from "class-validator";
+import { Exclude } from 'class-transformer';
+import { IsNotEmpty, IsNumber } from 'class-validator';
 
 export class CreateServiceDTO {
-    @IsNotEmpty()
-    @IsNumber()
-    companyId!: number;
+  @IsNotEmpty()
+  name!: string;
 
-    @IsNotEmpty()
-    @IsNumber()
-    unitId!: number;
+  @IsNotEmpty()
+  @IsNumber()
+  price!: number;
 
-    @IsNotEmpty()
-    name!: string;
+  @IsNotEmpty()
+  @IsNumber()
+  durationMinutes!: number;
 
-    @IsNotEmpty()
-    @IsNumber()
-    price!: number;
-
-    @IsNotEmpty()
-    @IsNumber()
-    durationMinutes!: number;
+  @Exclude()
+  userId?: number;
 }

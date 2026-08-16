@@ -7,7 +7,6 @@ import { PrismaUserRepository } from './infra/prisma-users.prima';
 import { PrismaModule } from '../prisma/prisma.module';
 import { DeleteUserUseCase } from './useCases/delete-user.useCase';
 import { BcryptModule } from '../bcrypt/bcrypt.module';
-import { FindByNameAndEmpresaUseCase } from './useCases/find-by-name-and-empresa.usecase';
 import { UsersController } from './presentation/controller/user.controller';
 
 @Module({
@@ -18,10 +17,9 @@ import { UsersController } from './presentation/controller/user.controller';
     FindAllUserUseCase,
     FindByIdUserUseCase,
     DeleteUserUseCase,
-    FindByNameAndEmpresaUseCase,
-    { provide: "UserRepository", useClass: PrismaUserRepository }
+    { provide: 'UserRepository', useClass: PrismaUserRepository },
   ],
   imports: [PrismaModule, BcryptModule],
-  exports: [FindByNameAndEmpresaUseCase, { provide: "UserRepository", useClass: PrismaUserRepository }],
+  exports: [{ provide: 'UserRepository', useClass: PrismaUserRepository }],
 })
-export class UsersModule { }
+export class UsersModule {}

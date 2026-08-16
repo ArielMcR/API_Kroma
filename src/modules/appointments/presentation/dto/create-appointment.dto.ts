@@ -1,39 +1,46 @@
-import { IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString } from "class-validator";
+import {
+  ArrayNotEmpty,
+  IsArray,
+  IsDateString,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateAppointmentDto {
-    @IsOptional()
-    @IsNumber()
-    companyId?: number;
+  @IsNotEmpty()
+  @IsNumber()
+  clientId!: number;
 
-    @IsOptional()
-    @IsNumber()
-    unitId?: number;
+  /** 1..N serviços. A duração do atendimento é a soma das durações. */
+  @IsArray()
+  @ArrayNotEmpty({ message: 'Informe ao menos um serviço' })
+  @IsInt({ each: true })
+  serviceIds!: number[];
 
-    @IsNotEmpty()
-    @IsNumber()
-    clientId!: number;
+  @IsNotEmpty()
+  @IsNumber()
+  professionalId!: number;
 
-    @IsNotEmpty()
-    @IsNumber()
-    serviceId!: number;
+  @IsNotEmpty()
+  @IsDateString()
+  appointmentDate!: string;
 
-    @IsNotEmpty()
-    @IsNumber()
-    professionalId!: number;
+  @IsNotEmpty()
+  @IsString()
+  startTime!: string;
 
-    @IsNotEmpty()
-    @IsDateString()
-    appointmentDate!: string;
+  @IsOptional()
+  @IsString()
+  endTime?: string;
 
-    @IsNotEmpty()
-    @IsString()
-    startTime!: string;
+  @IsOptional()
+  @IsNumber()
+  durationMinutes?: number;
 
-    @IsNotEmpty()
-    @IsString()
-    endTime!: string;
-
-    @IsNotEmpty()
-    @IsString()
-    status!: string;
+  @IsNotEmpty()
+  @IsString()
+  status!: string;
 }

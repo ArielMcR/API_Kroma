@@ -31,6 +31,64 @@
 $ pnpm install
 ```
 
+## Variáveis de ambiente
+
+```env
+DATABASE_URL="mysql://usuario:senha@localhost:3306/barber_shop"
+PORT=3000
+JWT_SECRET="..."
+SALT_ROUNDS=10
+
+# Sprint 3 — assistente em linguagem natural (Gemini)
+GEMINI_API_KEY=...                                 # aceita também GOOGLE_GEMINI_API_KEY
+GEMINI_MODEL=gemini-3.1-flash-lite                 # interpreta o comando e redige a resposta
+GEMINI_TRANSCRIPTION_MODEL=gemini-3.1-flash-lite   # só transcreve o áudio
+GEMINI_TIMEOUT_MS=20000
+```
+
+### Por que `flash-lite` nos dois
+
+Não é preferência, é cota. No plano gratuito:
+
+| Modelo | RPM | Requisições/dia |
+|---|---|---|
+| `gemini-3.5-flash` | 5 | **20** |
+| `gemini-3.1-flash-lite` | **15** | **500** |
+
+**20 requisições por dia** dá cerca de 10 comandos de texto (2 chamadas cada) ou 6 de voz
+(3 chamadas) — não sustenta nem o desenvolvimento, muito menos uma apresentação. O `flash-lite`
+ainda saiu **mais rápido** em tudo o que foi medido, com os mesmos resultados:
+
+| Cenário | `gemini-3.5-flash` | `gemini-3.1-flash-lite` |
+|---|---|---|
+| Comando de texto | 1,4 – 10 s | **1,5 – 3,2 s** |
+| Transcrição de áudio | 7,7 s | **2,2 s** |
+| Comando de voz completo | 29,1 s | **9,1 s** |
+
+As duas variáveis existem separadas porque só a interpretação justificaria um modelo maior, caso
+um dia haja cota paga — transcrever é tarefa mecânica e não precisa.
+
+**Sobre `GEMINI_MODEL`:** o PRD da Sprint 3 especificava `gemini-2.0-flash`, mas o Google
+descontinuou esse modelo (a API devolve `404 NOT_FOUND`) e fechou o `gemini-2.5-flash` para
+chaves criadas recentemente. `gemini-3.5-flash` foi validado com function calling. Para
+descobrir quais modelos a sua chave aceita:
+
+```bash
+curl -s "https://generativelanguage.googleapis.com/v1beta/models?key=$GEMINI_API_KEY"
+```
+
+**Sem a chave a aplicação sobe normalmente** — apenas as rotas `/assistant/*` respondem que o
+assistente está indisponível (RNF09). Nenhum outro módulo é afetado.
+
+⚠️ **Contando as chamadas:** um comando de texto consome **duas** (identificar a função + redigir a
+resposta) e um de **voz consome três** (transcrever + as duas anteriores). Com os 15 RPM / 500 RPD
+do `flash-lite`, isso dá ~7 comandos digitados por minuto e ~160 falados por dia. Ao estourar, a API
+responde `429` e o assistente devolve uma mensagem pedindo para aguardar, com os segundos sugeridos.
+
+O painel de uso fica em <https://ai.dev/rate-limit> — vale conferir o **RPD** antes de uma
+apresentação, porque o limite diário é o que trava de verdade e não se recupera esperando alguns
+segundos.
+
 ## Compile and run the project
 
 ```bash
@@ -46,16 +104,27 @@ $ pnpm run start:prod
 
 ## Run tests
 
+O projeto possui duas suítes de teste independentes — veja [test/RESULTADOS_TESTES.md](test/RESULTADOS_TESTES.md) para o relatório completo de cobertura e resultados.
+
 ```bash
-# unit tests
-$ pnpm run test
+# testes unitários (use cases, com mocks de repositório — não acessam banco de dados)
+$ pnpm run test:unit
 
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
+# testes unitários com relatório de cobertura (gerado em coverage/unit)
 $ pnpm run test:cov
+
+# testes de integração (sobem a aplicação completa via supertest contra um banco isolado)
+$ pnpm run test:integration
 ```
+
+### Banco de dados de testes de integração
+
+Os testes de integração rodam contra um banco MySQL **isolado** (`barber_shop_test`), separado do banco de desenvolvimento, configurado via `.env.test`. Antes de rodar `test:integration` pela primeira vez:
+
+1. Crie o schema `barber_shop_test` no mesmo servidor MySQL usado em desenvolvimento (mesmas credenciais de `DATABASE_URL`, apenas trocando o nome do banco).
+2. Rode `pnpm run pretest:integration` (ou simplesmente `pnpm run test:integration`, que já dispara esse script automaticamente) — ele aplica as migrations do Prisma no banco de teste via `scripts/migrate-test-db.js`.
+
+Cada suíte usa `test/helpers/seed.helper.ts` para popular (`seedTestDatabase`) e limpar (`cleanupTestDatabase`) seus próprios dados (empresa, unidade, usuário admin, serviço e cliente com sufixo único por execução), garantindo isolamento entre os arquivos de spec mesmo quando rodados com `--runInBand`.
 
 ## Deployment
 

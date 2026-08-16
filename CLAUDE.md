@@ -3,7 +3,7 @@
 ## Visao Geral do Projeto
 
 API REST para gestao de barbearias, construida com **NestJS 11 + Prisma + MySQL**.
-O sistema suporta multiplas empresas (Company), cada uma com multiplas unidades (Unit), usuarios com hierarquia de papeis, clientes, servicos, agendamentos, produtos e vendas.
+O sistema atende **uma unica barbearia por instalacao** (nao e multi-tenant): usuarios com hierarquia de papeis, clientes, servicos, agendamentos, produtos e vendas existem diretamente, sem escopo de empresa/unidade.
 
 **Stack principal:**
 - Runtime: Node.js
@@ -52,6 +52,12 @@ back-end/
       users/                         # Gestao de usuarios
       clients/                       # Gestao de clientes
       services/                      # Gestao de servicos de barbearia
+      appointments/                  # Agendamentos
+      observations/                  # Observacoes por cliente
+      products/                      # Produtos
+      sales/                         # Vendas de produtos
+      reports/                       # Relatorios e dashboard
+      settings/                      # Dados da barbearia (linha unica)
       bcrypt/                        # Servico de hash de senha
       prisma/                        # Modulo compartilhado do PrismaService
       common/
@@ -68,30 +74,56 @@ back-end/
 
 ## Modelos do Banco de Dados (Prisma)
 
-| Model       | Descricao                                                      |
-|-------------|----------------------------------------------------------------|
-| Company     | Empresa dona da barbearia (CNPJ, plano, active)                |
-| Unit        | Unidade/filial da empresa                                      |
-| User        | Usuario do sistema com Role; pertence a Company e Unit         |
-| Client      | Cliente da barbearia; pertence a Company e Unit                |
-| Service     | Servico oferecido (nome, preco, duracao em minutos)            |
-| Appointment | Agendamento ligando Client + Service + User(profissional)      |
-| Product     | Produto da unidade com preco de custo, margem e estoque        |
-| Sale        | Venda de produtos com metodo de pagamento                      |
-| SaleItem    | Item de uma venda (produto + quantidade + valor)               |
+| Model        | Descricao                                                      |
+|--------------|----------------------------------------------------------------|
+| Settings     | Dados da barbearia (nome, CNPJ, endereco, telefone). **Linha unica** — ler sempre com `findFirst()` |
+| User         | Usuario do sistema com Role                                    |
+| Client       | Cliente da barbearia                                           |
+| Service      | Servico oferecido (nome, preco, duracao em minutos)            |
+| Appointment  | Agendamento ligando Client + Service + User(profissional)      |
+| Observation  | Observacao vinculada a um Client                               |
+| Product      | Produto com preco de custo, margem e estoque                   |
+| Sale         | Venda de produtos com metodo de pagamento                      |
+| SaleItem     | Item de uma venda (produto + quantidade + valor)               |
+| LoginAttempt | Tentativas de login (rate limit / bloqueio temporario)         |
+| OperationLog | Log de operacoes (duracao, sucesso) usado pelo relatorio de metricas |
+| AssistantCommand | Historico de comandos em linguagem natural (Sprint 3), com status, ferramenta e duracao |
+| AppointmentService | Servicos de um agendamento (**1:N**), com preco e duracao congelados na marcacao |
 
-Soft delete implementado via campo `deletedAt` em: User, Unit, Client, Service, Appointment.
+### Agendamento tem 1..N servicos
+
+`Appointment` **nao tem mais `serviceId`**. Os servicos vivem em `AppointmentService`, e:
+
+- **`durationMinutes` do agendamento e a SOMA das duracoes dos servicos.** Corte 30min + barba
+  20min ocupa 50min. Quem calcula e o `CreateAppointmentUseCase`; nao aceite duracao arbitraria.
+- **`unitPrice` e `durationMinutes` do item sao CONGELADOS na marcacao.** Reajustar o cadastro de
+  um servico nao pode reescrever o faturamento de meses fechados — era o que acontecia antes,
+  porque os relatorios liam `service.price` direto.
+- **Relatorios leem os itens, nao o agendamento.** O ranking de servicos percorre
+  `appointmentService` para que um atendimento de corte + barba conte uma vez para cada.
+- Agendamento **sem servico nao pode existir**: o use case rejeita lista vazia antes de gravar.
+- Toda leitura de agendamento traz `services` via include (`INCLUDE_SERVICOS`) — sem eles nao ha
+  valor nem duracao.
+
+O contrato mudou: `POST /appointments` recebe **`serviceIds: number[]`** no lugar de `serviceId`.
+
+Soft delete implementado via campo `deletedAt` em: User, Client, Service, Appointment, Observation.
+
+`Settings` nao tem nenhuma FK apontando para ela — nenhuma outra tabela e escopada por ela.
 
 ---
 
 ## Hierarquia de Papeis (Roles)
 
 ```
-SUPER_ADMIN (4) > ADMIN (3) > SUPERVISOR (2) > BARBER (1)
+ADMIN (3) > SUPERVISOR (2) > BARBER (1)
 ```
 
+O `RolesGuard` compara `roleHierarchy[user.role] >= Math.min(...papeis exigidos)`, ou seja
+`@Roles('SUPERVISOR')` libera SUPERVISOR **e todos acima**. Nao liste papeis superiores
+junto — basta declarar o papel minimo.
+
 Definido em `src/modules/auth/domain/roles-hierarchy.ts`.
-O `RolesGuard` compara o nivel numerico do usuario com o minimo exigido pela rota.
 
 ---
 
@@ -99,47 +131,102 @@ O `RolesGuard` compara o nivel numerico do usuario com o minimo exigido pela rot
 
 ### auth
 
-**POST /auth/login** — sistema white-label, 3 fluxos:
+**POST /auth/login** — fluxo unico:
 
-| Body | Quem | Resposta |
-|------|------|----------|
-| `{ name, password }` | Usuario comum | `{ access_token, company, unit }` — company/unit vinculados ao usuario |
-| `{ name, password }` | SUPER_ADMIN | `{ access_token, companies[] }` — token sem companyId/unitId, retorna todas as empresas com unidades |
-| `{ name, password, companyId, unitId }` | SUPER_ADMIN | `{ access_token, company, unit }` — token com contexto escolhido |
+| Body | Resposta |
+|------|----------|
+| `{ name, password }` | `{ access_token, settings, user }` |
 
-- `LoginDto`: `name`, `password`, `companyId?`, `unitId?`
-- `ValidateUserUseCase`: busca usuario por `name` globalmente (sem filtro de empresa), valida senha com bcrypt
-- `LoginUseCase`: injeta `PrismaService`, determina fluxo pelo `role` e presenca de `companyId`/`unitId`. Payload do JWT: `{ sub, id, name, email, role, companyId, unitId }`
-- `LocalStrategy`: `usernameField: 'name'`, `passwordField: 'password'` (sem companyId/unitId)
+- `ValidateUserUseCase`: busca usuario por `name`, valida senha com bcrypt e aplica bloqueio
+  temporario (5 falhas em 15 min -> HTTP 429, via tabela `LoginAttempt`)
+- `LoginUseCase`: assina o JWT e devolve os dados da barbearia (`Settings`).
+  Payload do JWT: `{ sub, id, name, email, role }`
+- `LocalStrategy`: `usernameField: 'name'`, `passwordField: 'password'`
 - `JwtStrategy`: extrai token do header `Authorization: Bearer`, popula `request.user`
+- **GET /auth/me** — `{ user, settings }`
+- **PATCH /auth/change-password**
 - `RolesGuard`: verifica hierarquia de roles via decorator `@Roles()`
 - `JwtAuthGuard`: guard registrado globalmente via `APP_GUARD` no `AppModule`. Respeita o decorator `@Public()` para rotas abertas
 - `@Public()`: decorator em `auth/presentation/decorators/public.decorator.ts` — marca rotas que nao precisam de autenticacao (ex: login)
 
 ### users
-- **GET /users** — lista usuarios da mesma company+unit
+- **GET /users** — lista usuarios
 - **GET /users/:id** — busca usuario por id
-- **POST /users** — cria usuario (requer SUPER_ADMIN ou ADMIN)
-- **PATCH /users/:id** — atualiza usuario (requer SUPER_ADMIN ou ADMIN)
-- **DELETE /users/:id** — soft delete (requer SUPER_ADMIN ou ADMIN)
+- **POST /users** — cria usuario (requer ADMIN)
+- **PATCH /users/:id** — atualiza usuario (requer ADMIN)
+- **DELETE /users/:id** — soft delete (requer ADMIN)
 - Repositorio: `PrismaUserRepository` injetado como token `"UserRepository"`
 - `CreateUserUseCase` injeta `BcryptService` e faz hash da senha automaticamente antes de salvar
 
 ### clients
-- **GET /clients** — lista clientes filtrados por companyId + unitId do usuario logado
+- **GET /clients** — lista clientes
 - **GET /clients/:id** — busca cliente por id
-- **POST /clients** — cria cliente (requer SUPER_ADMIN ou ADMIN)
-- **PATCH /clients/:id** — atualiza cliente (requer SUPER_ADMIN ou ADMIN)
-- **DELETE /clients/:id** — deleta cliente (requer SUPER_ADMIN ou ADMIN)
+- **POST /clients** — cria cliente (requer SUPERVISOR+)
+- **PATCH /clients/:id** — atualiza cliente (requer SUPERVISOR+)
+- **DELETE /clients/:id** — soft delete (requer SUPERVISOR+)
 - Repositorio: `PrismaClientsRepository` injetado como token `"ClientRepository"`
 
 ### services
-- **GET /services** — lista servicos filtrados por companyId + unitId do usuario logado
-- **GET /services/:id** — busca servico por id (requer ADMIN ou SUPER_ADMIN)
-- **POST /services** — cria servico (requer ADMIN ou SUPER_ADMIN)
-- **PATCH /services/:id** — atualiza servico (requer ADMIN ou SUPER_ADMIN)
-- **DELETE /services/:id** — deleta servico (requer ADMIN ou SUPER_ADMIN)
+- **GET /services** — lista servicos
+- **GET /services/:id** — busca servico por id (requer ADMIN)
+- **POST /services** — cria servico (requer ADMIN)
+- **PATCH /services/:id** — atualiza servico (requer ADMIN)
+- **DELETE /services/:id** — soft delete (requer ADMIN)
 - Repositorio: `PrismaServiceRepository` injetado como token `"ServicesRepository"`
+
+### settings
+- **GET /settings** — dados da barbearia (qualquer usuario autenticado)
+- **PATCH /settings** — atualiza os dados (requer ADMIN)
+- Tabela de linha unica: o repositorio usa `findFirst()` e atualiza pelo id encontrado
+- Repositorio: `PrismaSettingsRepository` injetado como token `"SettingsRepository"`
+
+### appointments, observations, products, sales, reports
+Todos com CRUD completo seguindo o mesmo padrao de camadas.
+`reports` expoe `/reports/attendance`, `/services`, `/revenue`, `/dashboard` e `/metrics`,
+todos parametrizados apenas por periodo (`?from=&to=`).
+
+### assistant (Sprint 3 — interface em linguagem natural)
+
+- **POST /assistant/command** — `{ text }` -> `{ response, toolExecuted, status, commandId }`
+- **POST /assistant/command/audio** — multipart, campo `audio` -> o mesmo + `transcription`
+- **GET /assistant/history?limit=** — historico do usuario autenticado
+- Sem `@Roles`: qualquer usuario autenticado usa (RN17)
+
+**Voz e so um adaptador.** `executeAudio` transcreve e chama o MESMO `execute` do texto — nao ha
+segundo cerebro. Multipart em vez de base64 em JSON porque o body parser do Nest limita JSON a
+100 kB e qualquer audio real estouraria. A transcricao virou o `rawText` gravado (mantem as
+metricas analisaveis) e volta na resposta para o chat mostrar o que foi ouvido.
+
+**Dois modelos configuraveis:** `GEMINI_MODEL` interpreta e redige; `GEMINI_TRANSCRIPTION_MODEL`
+so transcreve. Ambos usam `gemini-3.1-flash-lite` por causa da **cota diaria**: no plano gratuito o
+`gemini-3.5-flash` da apenas **20 requisicoes por dia** (~10 comandos de texto), enquanto o
+flash-lite da 500 — e ainda e mais rapido (texto 1,5-3,2s contra 1,4-10s; transcricao 2,2s contra
+7,7s). Comando de voz gasta **3** chamadas contra 2 do texto. Conferir o RPD em
+<https://ai.dev/rate-limit> antes de apresentar: o limite diario nao se recupera esperando.
+
+O `ProcessCommandUseCase` manda o texto ao Gemini com 4 function declarations, executa a funcao
+escolhida chamando os **mesmos use cases** dos outros modulos e devolve o resultado ao modelo para
+virar frase. Nao reimplementa nenhuma regra — e assim que as validacoes continuam valendo (RN18).
+
+**As 4 funcoes sao a superficie inteira:** `QUERY_SCHEDULE`, `CREATE_APPOINTMENT`,
+`REGISTER_CLIENT`, `GENERATE_REPORT`. Nao existe funcao de exclusao ou troca de senha — a RN20 e
+cumprida por ausencia. **Ao adicionar uma funcao nova, nunca exponha operacao destrutiva.**
+
+**Erro de negocio nao e erro de sistema.** Excecao vinda de um use case e capturada em volta de
+`executarFuncao`, devolvida ao Gemini como `functionResponse` e virada frase; grava
+`EXECUTION_ERROR` **com `toolExecuted` preenchido**. O `catch` externo trata so falha de infra
+(Gemini fora, 429, timeout) e grava com `toolExecuted: null`. Essa distincao e o que faz
+"agenda pra terca" responder "so atendemos sexta e sabado" em vez de "erro, tente novamente".
+
+**Todo comando e gravado em `AssistantCommand`**, inclusive os que falharam — e a base das metricas
+de avaliacao do TCC (§7 do PRD).
+
+**Gemini:** SDK `@google/genai` (o `@google/generative-ai` do PRD esta descontinuado). No SDK atual
+`response.functionCalls` e `response.text` sao **getters, nao metodos**. `GeminiClient` aceita
+`GEMINI_API_KEY` ou `GOOGLE_GEMINI_API_KEY`, tolera chave ausente sem derrubar o boot (RNF09) e
+aplica `thinkingConfig: { thinkingBudget: 0 }` — sem isso os modelos flash 2.5+ passam de 20s.
+
+Desvios em relacao ao PRD estao consolidados em [PRD/PRD_SPRINT3_LLM_MCP.md](PRD/PRD_SPRINT3_LLM_MCP.md) §11.
 
 ### bcrypt
 - `BcryptService`: wraps `bcrypt.hash` e `bcrypt.compare`
@@ -151,24 +238,34 @@ O `RolesGuard` compara o nivel numerico do usuario com o minimo exigido pela rot
 
 ### common
 - `ApiExceptionFilter`: captura `HttpException` e retorna `{ statusCode, message }` padronizado
-- `InjectUserBodyInterceptor`: injeta `companyId`, `userId`, `unitId` do JWT no `request.body` automaticamente em todas as rotas autenticadas
+- `InjectUserBodyInterceptor`: injeta `userId` do JWT no `request.body` automaticamente em todas as rotas autenticadas
+- `OperationLogInterceptor`: grava duracao/sucesso das operacoes na tabela `OperationLog`
 
 ---
 
-## Mecanismo de Multi-tenancy
+## Instalacao unica (sem multi-tenancy)
 
-O sistema e multi-tenant por `companyId` + `unitId`. O interceptor global `InjectUserBodyInterceptor` injeta esses valores do usuario autenticado no body de todas as requisicoes. Os repositorios filtram queries por esses campos automaticamente.
+O sistema **nao e multi-tenant**. Nao existe `companyId`/`unitId` em lugar nenhum: os
+repositorios consultam as tabelas diretamente, sem filtro de escopo. Os dados da barbearia
+ficam em `Settings` (linha unica) e nenhuma tabela referencia essa linha.
+
+Ao adicionar um model novo, **nao** crie coluna de escopo — a instalacao inteira e uma
+barbearia so.
+
+O `InjectUserBodyInterceptor` continua injetando `userId` no body (usado para `creatorUserId`
+e autoria). Repositorios que recebem o body inteiro removem esse campo antes de passar ao
+Prisma (`delete data.userId`) ou projetam explicitamente os campos que persistem.
 
 ---
 
 ## Convencoes do Projeto
 
-- **Repositorios** sao injetados via string token: `@Inject("UserRepository")`, `@Inject("ClientRepository")`, `@Inject("ServicesRepository")`
+- **Repositorios** sao injetados via string token: `@Inject("UserRepository")`, `@Inject("ClientRepository")`, `@Inject("ServicesRepository")`, `@Inject("SettingsRepository")`
 - **Use Cases** sao `@Injectable()` e recebem o repositorio no construtor
 - **DTOs** usam `class-validator` decorators e `PartialType` do `@nestjs/mapped-types` para updates
 - **Entidades de dominio** estendem a classe `Default` (timestamps)
-- **Soft delete** e padrao para Users, Clients, Units (campo `deletedAt`)
-- Autenticacao local usa `name + companyId + unitId` (nao email) como identificador de login
+- **Soft delete** e padrao para Users, Clients, Services, Appointments (campo `deletedAt`)
+- Autenticacao local usa `name` (nao email) como identificador de login
 
 ---
 
@@ -186,30 +283,16 @@ pnpm test:e2e           # testes e2e
 
 ---
 
-## Modulos NAO Implementados (schema existe, modulo nao)
-
-Os modelos abaixo existem no schema Prisma mas nao tem modulos NestJS:
-
-- **Appointment** — agendamentos (modelo central do negocio)
-- **Product** — produtos da unidade
-- **Sale / SaleItem** — vendas de produtos
-- **Unit** — unidades/filiais (sem CRUD proprio)
-- **Company** — empresas (sem CRUD proprio)
-
----
-
 ## Inconsistencias Pendentes
 
-- **Soft delete inconsistente**: `deleteService` e `deleteClient` usam hard delete (`prisma.delete`), enquanto `deleteUser` usa soft delete (`deletedAt`). Padronizar para soft delete em todos.
+- **Soft delete inconsistente**: `deleteProduct` e `deleteSale` usam hard delete
+  (`prisma.delete`), enquanto users/clients/services/appointments usam soft delete
+  (`deletedAt`). Padronizar ao mexer nesses modulos.
 
 ---
 
 ## Proximos Passos Sugeridos
 
-- Implementar modulo de `Appointments` (CRUD completo)
-- Implementar modulo de `Units` (CRUD, vinculado a Company)
-- Implementar modulo de `Company` (CRUD para SUPER_ADMIN)
-- Implementar modulo de `Products` e `Sales`
-- Padronizar soft delete em clients e services
+- Padronizar soft delete em products e sales
 - Configurar Swagger/OpenAPI
-- Adicionar testes unitarios nos use cases
+- Ampliar a cobertura de testes unitarios nos use cases

@@ -1,4 +1,15 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpException,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 
 import { Client } from '../../domain/client.entity';
 import { CreateClientDTO } from '../dto/create-client.dto';
@@ -15,43 +26,55 @@ import { RolesGuard } from 'src/modules/auth/infra/guards/roles.guard';
 
 @Controller('clients')
 export class ClientsController {
-    constructor(
-        private readonly create: CreateClientUseCase,
-        private readonly update: UpdateClientUseCase,
-        private readonly deleteClient: DeleteClientUseCase,
-        private readonly getById: FindUniqueClientUseCase,
-        private readonly getAll: FindAllClientsUseCase,
-    ) { }
+  constructor(
+    private readonly create: CreateClientUseCase,
+    private readonly update: UpdateClientUseCase,
+    private readonly deleteClient: DeleteClientUseCase,
+    private readonly getById: FindUniqueClientUseCase,
+    private readonly getAll: FindAllClientsUseCase,
+  ) {}
 
-    @Get()
-    async getAll_(@CurrentUser() user: UserAuthDto): Promise<Client[]> {
-        return await this.getAll.execute(user);
-    }
+  @Get()
+  async getAll_(): Promise<Client[]> {
+    return await this.getAll.execute();
+  }
 
-    @Post()
-    @Roles('SUPER_ADMIN', 'ADMIN') // -> apenas usuarios com esses papeis podem acessar essa rota
-    @UseGuards(RolesGuard)
-    async create_(@Body() data: CreateClientDTO): Promise<Client> {
-        console.log(data);
-        return await this.create.execute(data);
+  @Post()
+  @Roles('SUPERVISOR') // -> apenas usuarios com esse papel ou superior podem acessar essa rota
+  @UseGuards(RolesGuard)
+  async create_(@Body() data: CreateClientDTO): Promise<Client> {
+    const response = await this.create.execute(data);
+    if (!response) {
+      throw new HttpException('Error creating client', 500);
     }
+    return {
+      ...response,
+      statusCode: 201,
+      success: true,
+    };
+  }
 
-    @Patch(':id')
-    @Roles('SUPER_ADMIN', 'ADMIN') // -> apenas usuarios com esses papeis podem acessar essa rota
-    @UseGuards(RolesGuard)
-    async update_(@Body() data: UpdateClientDTO, @Param('id') id: string): Promise<any> {
-        return await this.update.execute(data, +id);
-    }
+  @Patch(':id')
+  @Roles('SUPERVISOR') // -> apenas usuarios com esse papel ou superior podem acessar essa rota
+  @UseGuards(RolesGuard)
+  async update_(
+    @Body() data: UpdateClientDTO,
+    @Param('id') id: string,
+  ): Promise<any> {
+    return await this.update.execute(data, +id);
+  }
 
-    @Delete(':id')
-    @Roles('SUPER_ADMIN', 'ADMIN') // -> apenas usuarios com esses papeis podem acessar essa rota
-    @UseGuards(RolesGuard)
-    async delete_(@Param('id') id: string): Promise<void> {
-        return await this.deleteClient.execute(+id);
-    }
+  @Delete(':id')
+  @Roles('SUPERVISOR') // -> apenas usuarios com esse papel ou superior podem acessar essa rota
+  @UseGuards(RolesGuard)
+  async delete_(@Param('id') id: string): Promise<void> {
+    return await this.deleteClient.execute(+id);
+  }
 
-    @Get(':id')
-    async getById_(@Param('id', ParseIntPipe) id: number): Promise<Client | null> {
-        return await this.getById.execute(id);
-    }
+  @Get(':id')
+  async getById_(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<Client | null> {
+    return await this.getById.execute(id);
+  }
 }

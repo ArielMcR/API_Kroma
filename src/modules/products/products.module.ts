@@ -10,15 +10,15 @@ import { FindAllProductsUseCase } from './useCases/find-all-products.usecase';
 import { FindByIdProductUseCase } from './useCases/find-by-id-product.usecase';
 
 @Module({
-    controllers: [ProductsController],
-    providers: [
-        CreateProductUseCase,
-        UpdateProductUseCase,
-        DeleteProductUseCase,
-        FindAllProductsUseCase,
-        FindByIdProductUseCase,
-        { provide: 'ProductRepository', useClass: PrismaProductsRepository },
-    ],
-    imports: [PrismaModule, AuthModule],
+  controllers: [ProductsController],
+  providers: [
+    CreateProductUseCase,
+    UpdateProductUseCase,
+    DeleteProductUseCase,
+    FindAllProductsUseCase,
+    FindByIdProductUseCase,
+    { provide: 'ProductRepository', useClass: PrismaProductsRepository },
+  ],
+  imports: [PrismaModule, AuthModule],
 })
-export class ProductsModule { }
+export class ProductsModule {}

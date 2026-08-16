@@ -10,15 +10,18 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-    controllers: [ServicesController],
-    providers: [
-        CreateServiceUseCase,
-        UpdateServiceUseCase,
-        DeleteServiceUseCase,
-        FindByIdServiceUseCase,
-        FindAllServicesUseCase,
-        { provide: "ServiceRepository", useClass: PrismaServiceRepository }
-    ],
-    imports: [PrismaModule, AuthModule],
+  controllers: [ServicesController],
+  providers: [
+    CreateServiceUseCase,
+    UpdateServiceUseCase,
+    DeleteServiceUseCase,
+    FindByIdServiceUseCase,
+    FindAllServicesUseCase,
+    { provide: 'ServiceRepository', useClass: PrismaServiceRepository },
+  ],
+  imports: [PrismaModule, AuthModule],
+  exports: [
+    { provide: 'ServiceRepository', useClass: PrismaServiceRepository },
+  ],
 })
-export class ServicesModule { }
+export class ServicesModule {}

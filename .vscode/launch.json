@@ -14,7 +14,8 @@
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen",
             "sourceMaps": true,
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/back-end",
+            "name": "Launch Nest (back-end)",
             "protocol": "inspector",
             "skipFiles": [
                 "<node_internals>/**"
