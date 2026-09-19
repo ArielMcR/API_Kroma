@@ -23,7 +23,8 @@
     "test:integration": "jest --config jest.integration.config.ts --runInBand",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "ts-node prisma/seeds.ts"
+    "prisma:seed": "ts-node prisma/seeds.ts",
+    "hash": "node scripts/hash-password.js"
   },
   "dependencies": {
     "@google/genai": "^2.17.1",
