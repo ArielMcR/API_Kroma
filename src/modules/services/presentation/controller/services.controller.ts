@@ -64,7 +64,7 @@ export class ServicesController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles('SUPERVISOR')
   @UseGuards(RolesGuard)
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -79,7 +79,7 @@ export class ServicesController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Roles('SUPERVISOR')
   @UseGuards(RolesGuard)
   async delete(@Param('id', ParseIntPipe) id: number) {
     try {

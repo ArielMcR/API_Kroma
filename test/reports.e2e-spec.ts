@@ -36,12 +36,14 @@ describe('Reports (e2e)', () => {
       data: {
         clientId: seeded.clientId,
         services: {
-          create: [{
-            serviceId: seeded.serviceId,
-            unitPrice: 50,
-            durationMinutes: 30,
-            position: 0,
-          }],
+          create: [
+            {
+              serviceId: seeded.serviceId,
+              unitPrice: 50,
+              durationMinutes: 30,
+              position: 0,
+            },
+          ],
         },
         professionalId: seeded.adminUserId,
         appointmentDate: hoje,
@@ -55,12 +57,14 @@ describe('Reports (e2e)', () => {
       data: {
         clientId: seeded.clientId,
         services: {
-          create: [{
-            serviceId: seeded.serviceId,
-            unitPrice: 50,
-            durationMinutes: 30,
-            position: 0,
-          }],
+          create: [
+            {
+              serviceId: seeded.serviceId,
+              unitPrice: 50,
+              durationMinutes: 30,
+              position: 0,
+            },
+          ],
         },
         professionalId: seeded.adminUserId,
         appointmentDate: hoje,

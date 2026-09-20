@@ -10,7 +10,9 @@ export type CreateUserData = {
   userId?: number | null;
 };
 
-export type UpdateUserData = Partial<CreateUserData>;
+// `active` não entra em CreateUserData (usuário sempre nasce ativo) — só o
+// PATCH pode desativar, daí ficar só no Update.
+export type UpdateUserData = Partial<CreateUserData> & { active?: boolean };
 
 export interface UserRepository {
   createUser: (data: CreateUserData) => Promise<Partial<User>>;
@@ -20,4 +22,6 @@ export interface UserRepository {
   updateUser: (id: number, data: UpdateUserData) => Promise<Partial<User>>;
   deleteUser: (id: number) => Promise<void>;
   getUserByName: (name: string) => Promise<User | null>;
+  /** Quantidade de ADMINs ativos (não deletados). Usado para impedir remover o último. */
+  countActiveAdmins: () => Promise<number>;
 }

@@ -1,7 +1,7 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 
 export class AppointmentScheduleValidator {
-  private static readonly ALLOWED_DAYS = [5, 6]; // sexta, sábado
+  private static readonly ALLOWED_DAYS = [1, 2, 3, 4, 5, 6]; // segunda a sábado
   private static readonly MORNING = { start: '08:00', end: '12:00' };
   private static readonly AFTERNOON = { start: '13:15', end: '19:30' };
   private static readonly MAX_ADVANCE_DAYS = 7;
@@ -28,7 +28,7 @@ export class AppointmentScheduleValidator {
 
     if (!this.ALLOWED_DAYS.includes(dayOfWeek)) {
       throw new HttpException(
-        'Agendamentos só são permitidos às sextas e sábados',
+        'Agendamentos só são permitidos de segunda a sábado',
         HttpStatus.BAD_REQUEST,
       );
     }

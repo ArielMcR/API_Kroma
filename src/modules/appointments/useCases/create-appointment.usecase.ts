@@ -26,8 +26,7 @@ export class CreateAppointmentUseCase {
       data.serviceIds,
     );
 
-    const durationMinutes =
-      AppointmentServicesResolver.totalDuration(services);
+    const durationMinutes = AppointmentServicesResolver.totalDuration(services);
 
     const endTime = AppointmentServicesResolver.calculateEndTime(
       data.startTime,

@@ -61,6 +61,8 @@ export class PrismaUserRepository implements UserRepository {
         id: true,
         name: true,
         email: true,
+        role: true,
+        active: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -74,6 +76,8 @@ export class PrismaUserRepository implements UserRepository {
         id: true,
         name: true,
         email: true,
+        role: true,
+        active: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -125,5 +129,11 @@ export class PrismaUserRepository implements UserRepository {
       where: { name, deletedAt: null, active: true },
     });
     return user as User | null;
+  }
+
+  async countActiveAdmins(): Promise<number> {
+    return this.prisma.user.count({
+      where: { role: 'ADMIN', deletedAt: null, active: true },
+    });
   }
 }

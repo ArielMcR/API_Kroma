@@ -18,6 +18,8 @@ import { FindByIdUserUseCase } from '../../useCases/find-by-id-user.usecase';
 import { Roles } from 'src/modules/auth/presentation/decorators/roles-user.decorator';
 import { RolesGuard } from 'src/modules/auth/infra/guards/roles.guard';
 import { UpdateUserDTO } from '../dtos/update-user.dto';
+import { CurrentUser } from 'src/modules/auth/presentation/decorators/current-user.decorator';
+import type { UserAuthDto } from 'src/modules/auth/presentation/dto/user-auth.dto';
 
 @Controller('users')
 export class UsersController {
@@ -30,7 +32,7 @@ export class UsersController {
   ) {}
 
   @Post()
-  @Roles('ADMIN')
+  @Roles('SUPERVISOR')
   @UseGuards(RolesGuard)
   async createUser(@Body() user: CreateUserDTO) {
     try {
@@ -42,6 +44,8 @@ export class UsersController {
   }
 
   @Get()
+  @Roles('SUPERVISOR')
+  @UseGuards(RolesGuard)
   async findAllUsers() {
     try {
       return await this.findAllUserUseCase.execute();
@@ -52,6 +56,8 @@ export class UsersController {
   }
 
   @Get(':id')
+  @Roles('SUPERVISOR')
+  @UseGuards(RolesGuard)
   async findUserById(@Param('id', ParseIntPipe) id: number) {
     try {
       return await this.findByIdUserUseCase.execute(id);
@@ -62,7 +68,7 @@ export class UsersController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles('SUPERVISOR')
   @UseGuards(RolesGuard)
   async updateUser(
     @Param('id', ParseIntPipe) id: number,
@@ -77,11 +83,14 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Roles('SUPERVISOR')
   @UseGuards(RolesGuard)
-  async deleteUser(@Param('id', ParseIntPipe) id: number) {
+  async deleteUser(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: UserAuthDto,
+  ) {
     try {
-      await this.deleteUserUseCase.execute(id);
+      await this.deleteUserUseCase.execute(id, user.id);
     } catch (error) {
       console.error('Error deleting user:', error);
       throw error;

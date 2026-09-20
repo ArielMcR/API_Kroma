@@ -16,7 +16,14 @@ describe('CancelAppointmentUseCase', () => {
       id: 1,
       clientId: 1,
       services: [
-        { id: 1, appointmentId: 1, serviceId: 1, unitPrice: 50, durationMinutes: 30, position: 0 },
+        {
+          id: 1,
+          appointmentId: 1,
+          serviceId: 1,
+          unitPrice: 50,
+          durationMinutes: 30,
+          position: 0,
+        },
       ],
       professionalId: 1,
       appointmentDate: target,

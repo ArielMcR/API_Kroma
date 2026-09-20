@@ -51,7 +51,7 @@ export class AppointmentsController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles('BARBER')
   @UseGuards(RolesGuard)
   async update_(
     @Param('id', ParseIntPipe) id: number,

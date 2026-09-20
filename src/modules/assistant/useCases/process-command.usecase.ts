@@ -217,8 +217,8 @@ export class ProcessCommandUseCase {
       const argumentos: Record<string, unknown> = chamada.args ?? {};
 
       // Erro de regra de negocio NAO aborta o fluxo: ele volta ao Gemini como
-      // resultado da function para virar frase. E o que faz "agendei pra
-      // terça" responder "só atendemos sextas e sábados" em vez do erro
+      // resultado da function para virar frase. E o que faz "agendei pro
+      // domingo" responder "não atendemos aos domingos" em vez do erro
       // generico de sistema (criterio de aceitacao 3).
       let resultadoFuncao: unknown;
       let erroNegocio: string | null = null;

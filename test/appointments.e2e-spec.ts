@@ -21,11 +21,11 @@ const proximaSextaOuSabado = (): string => {
   return date.toISOString().slice(0, 10);
 };
 
-const proximoDiaUtilNaoPermitido = (): string => {
+const proximoDomingo = (): string => {
   const date = new Date();
   date.setHours(0, 0, 0, 0);
   date.setDate(date.getDate() + 1);
-  while (date.getDay() === 5 || date.getDay() === 6) {
+  while (date.getDay() !== 0) {
     date.setDate(date.getDate() + 1);
   }
   return date.toISOString().slice(0, 10);
@@ -64,7 +64,7 @@ describe('Appointments (e2e)', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({
         clientId: seeded.clientId,
-        serviceId: seeded.serviceId,
+        serviceIds: [seeded.serviceId],
         professionalId: seeded.adminUserId,
         appointmentDate: dataValida,
         startTime: '09:00',
@@ -82,7 +82,7 @@ describe('Appointments (e2e)', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({
         clientId: seeded.clientId,
-        serviceId: seeded.serviceId,
+        serviceIds: [seeded.serviceId],
         professionalId: seeded.adminUserId,
         appointmentDate: dataValida,
         startTime: '09:00',
@@ -101,16 +101,16 @@ describe('Appointments (e2e)', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({
         clientId: seeded.clientId,
-        serviceId: seeded.serviceId,
+        serviceIds: [seeded.serviceId],
         professionalId: seeded.adminUserId,
-        appointmentDate: proximoDiaUtilNaoPermitido(),
+        appointmentDate: proximoDomingo(),
         startTime: '09:00',
         status: 'SCHEDULED',
       });
 
     expect(response.status).toBe(400);
     expect((response.body as { message: string }).message).toContain(
-      'sextas e sábados',
+      'segunda a sábado',
     );
   });
 
@@ -143,7 +143,7 @@ describe('Appointments (e2e)', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({
         clientId: seeded.clientId,
-        serviceId: seeded.serviceId,
+        serviceIds: [seeded.serviceId],
         professionalId: seeded.adminUserId,
         appointmentDate: dataValida,
         startTime: '09:00',

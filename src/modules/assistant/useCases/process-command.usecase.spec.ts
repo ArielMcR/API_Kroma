@@ -111,7 +111,7 @@ describe('ProcessCommandUseCase', () => {
     clientRepository.findByName.mockResolvedValue({ id: 7, name: 'Carlos' });
     serviceRepository.findByName.mockResolvedValue({ id: 3, name: 'Corte' });
     createAppointment.execute.mockRejectedValue(
-      new Error('Agendamentos só são permitidos às sextas e sábados'),
+      new Error('Agendamentos só são permitidos de segunda a sábado'),
     );
 
     chat.sendMessage
@@ -122,23 +122,23 @@ describe('ProcessCommandUseCase', () => {
             args: {
               clientName: 'Carlos',
               serviceNames: ['Corte'],
-              date: '2026-08-18',
+              date: '2026-08-16',
               startTime: '09:00',
             },
           },
         }),
       )
       .mockResolvedValueOnce(
-        resposta({ texto: 'Só atendemos às sextas e sábados.' }),
+        resposta({ texto: 'Não atendemos aos domingos.' }),
       );
 
-    const saida = await useCase.execute(1, 'agenda o Carlos terça às 9h');
+    const saida = await useCase.execute(1, 'agenda o Carlos domingo às 9h');
 
     expect(saida.status).toBe('EXECUTION_ERROR');
     // A ferramenta fica registrada: o comando FOI interpretado, quem barrou foi
     // a regra de negocio. É o que diferencia isso de uma falha de infra.
     expect(saida.toolExecuted).toBe('CREATE_APPOINTMENT');
-    expect(saida.response).toBe('Só atendemos às sextas e sábados.');
+    expect(saida.response).toBe('Não atendemos aos domingos.');
 
     // O erro precisa ter voltado ao modelo como resultado da function.
     const segundaChamada = chat.sendMessage.mock.calls[1][0];

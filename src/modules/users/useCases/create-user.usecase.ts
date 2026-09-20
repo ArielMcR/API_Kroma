@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import type { CreateUserData, UserRepository } from '../domain/user.repository';
 import { User } from '../domain/user.entity';
 import { UnauthorizedUserCreationException } from '../domain/exceptions/unauthorized.exception';
@@ -14,13 +14,32 @@ export class CreateUserUseCase {
   ) {}
 
   async execute(data: CreateUserDTO): Promise<Partial<User>> {
-    const creatorUser = await this.userRepository.getUserById(
-      data.creatorUserId,
-    );
+    // O criador vem só do JWT (`userId` injetado pelo InjectUserBodyInterceptor).
+    // Nunca aceitar esse dado do cliente: um `creatorUserId` no body permitia
+    // a um SUPERVISOR se passar por um ADMIN e escalar privilégio.
+    const creatorUserId = data.userId;
+
+    if (!creatorUserId) {
+      throw new HttpException(
+        'Não foi possível identificar o usuário responsável pela criação.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const creatorUser = await this.userRepository.getUserById(creatorUserId);
 
     if (!creatorUser) {
       throw new UnauthorizedUserCreationException(
         'Usuário criador não encontrado',
+      );
+    }
+
+    // RF06/RF23: SUPERVISOR cadastra usuario, mas so barbeiro — ADMIN
+    // continua podendo criar qualquer papel.
+    if (creatorUser.role === 'SUPERVISOR' && data.role !== 'BARBER') {
+      throw new HttpException(
+        'Supervisor só pode cadastrar barbeiros.',
+        HttpStatus.FORBIDDEN,
       );
     }
 
@@ -32,7 +51,7 @@ export class CreateUserUseCase {
       email: data.email,
       passwordHash,
       role: data.role,
-      creatorUserId: data.creatorUserId,
+      creatorUserId,
       userId: data.userId,
     };
 

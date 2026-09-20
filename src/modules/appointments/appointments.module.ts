@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { ServicesModule } from '../services/services.module';
+import { UsersModule } from '../users/users.module';
 import { AppointmentsController } from './presentation/controller/appointments.controller';
 import { PrismaAppointmentsRepository } from './infra/prisma-appointments';
 import { CreateAppointmentUseCase } from './useCases/create-appointment.usecase';
@@ -29,7 +30,7 @@ import { FindAppointmentsByDateUseCase } from './useCases/find-appointments-by-d
       useClass: PrismaAppointmentsRepository,
     },
   ],
-  imports: [PrismaModule, AuthModule, ServicesModule],
+  imports: [PrismaModule, AuthModule, ServicesModule, UsersModule],
   // Consumidos pelo AssistantModule (Sprint 3).
   exports: [CreateAppointmentUseCase, FindAppointmentsByDateUseCase],
 })

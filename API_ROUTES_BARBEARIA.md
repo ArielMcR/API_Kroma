@@ -7,6 +7,7 @@ Este documento consolida as rotas dos módulos:
 - products
 - sales
 - settings
+- users
 
 Base URL local:
 - `http://localhost:3000`
@@ -165,7 +166,7 @@ Resposta `201/200`: objeto criado (campos selecionados: `id`, `name`, `price`, `
 
 ### PATCH /services/:id
 - Descrição: Atualiza serviço (parcial).
-- Acesso: `ADMIN`
+- Acesso: `SUPERVISOR`
 - Parâmetros:
   - `id` (number, obrigatório)
 - Body: parcial de `CreateServiceDTO`
@@ -173,7 +174,7 @@ Resposta `201/200`: objeto criado (campos selecionados: `id`, `name`, `price`, `
 
 ### DELETE /services/:id
 - Descrição: Exclui serviço (soft delete).
-- Acesso: `ADMIN`
+- Acesso: `SUPERVISOR`
 - Parâmetros:
   - `id` (number, obrigatório)
 - Resposta `200/204`: sem conteúdo
@@ -186,7 +187,7 @@ Resposta `201/200`: objeto criado (campos selecionados: `id`, `name`, `price`, `
 Prefixo: `/appointments`
 
 ### GET /appointments
-- Descrição: Lista agendamentos do profissional autenticado (`professionalId = user.id`) com `deletedAt = null`.
+- Descrição: Lista agendamentos do profissional autenticado (`professionalId = user.id`) com `deletedAt = null` e `status != CANCELLED`.
 - Acesso: autenticado
 - Resposta `200`:
 
@@ -247,11 +248,14 @@ Resposta `201/200`: objeto `Appointment` criado.
 
 ### PATCH /appointments/:id
 - Descrição: Atualiza agendamento (parcial).
-- Acesso: `ADMIN`
+- Acesso: `BARBER` (nível mínimo — ADMIN e SUPERVISOR também podem)
 - Parâmetros:
   - `id` (number, obrigatório)
 - Body: parcial de `CreateAppointmentDto`
 - Resposta `200`: objeto atualizado
+- Regras:
+  - Um `BARBER` só edita agendamentos em que `professionalId` é o próprio usuário logado — editar o de outro profissional retorna `403`.
+  - Campos de cancelamento/cobrança (`cancelledAt`, `cancelledLate`, `chargeRegistered`, `chargeAmount`) e `status` não são aceitos por esta rota — quem escreve neles é `POST /appointments/:id/cancel` e `POST /appointments/:id/complete`.
 
 ### DELETE /appointments/:id
 - Descrição: Exclui agendamento (soft delete).
@@ -467,6 +471,88 @@ Campos (todos opcionais, todos string):
 
 ---
 
+## 7) Users
+Prefixo: `/users`
+
+> Equipe da barbearia. Resposta nunca inclui `passwordHash`.
+
+### GET /users
+- Descrição: Lista todos os usuários não deletados.
+- Acesso: `SUPERVISOR`
+- Body: não usa
+- Resposta `200`:
+
+```json
+[
+  {
+    "id": 1,
+    "name": "João da Silva",
+    "email": "joao@barbearia.com",
+    "role": "ADMIN",
+    "active": true,
+    "createdAt": "2026-04-03T12:00:00.000Z",
+    "updatedAt": "2026-04-03T12:00:00.000Z"
+  }
+]
+```
+
+### GET /users/:id
+- Descrição: Busca usuário por ID.
+- Acesso: `SUPERVISOR`
+- Parâmetros:
+  - `id` (number, obrigatório)
+- Resposta `200`: objeto `User` (mesmo shape acima)
+
+### POST /users
+- Descrição: Cria usuário.
+- Acesso: `SUPERVISOR`
+- Body:
+
+```json
+{
+  "name": "Novo Barbeiro",
+  "email": "barbeiro@barbearia.com",
+  "passwordHash": "senha-em-texto-puro",
+  "role": "BARBER"
+}
+```
+
+Campos:
+- `name` (string, obrigatório)
+- `email` (string, obrigatório, formato de email)
+- `passwordHash` (string, obrigatório) — apesar do nome, é a senha em **texto puro**; o back-end faz o hash antes de salvar
+- `role` (string, obrigatório) — `ADMIN` | `SUPERVISOR` | `BARBER`
+
+Não existe campo `creatorUserId` no contrato: quem criou o usuário é sempre derivado do `userId` do JWT (interceptor global), nunca de um valor enviado pelo cliente.
+
+Resposta `201/200`: objeto criado (`{ id, name, email, createdAt, updatedAt }`).
+Erros comuns:
+- `403` se um `SUPERVISOR` tentar cadastrar `role` diferente de `BARBER`.
+- `400` se o `userId` do criador não puder ser identificado.
+
+### PATCH /users/:id
+- Descrição: Atualiza usuário (parcial).
+- Acesso: `SUPERVISOR`
+- Parâmetros:
+  - `id` (number, obrigatório)
+- Body: parcial dos campos de criação (inclusive `passwordHash` para trocar senha)
+- Resposta `200`: objeto atualizado
+- Erros comuns:
+  - `403` se um `SUPERVISOR` tentar editar um `ADMIN`/`SUPERVISOR` ou promover alguém a papel acima de `BARBER`.
+
+### DELETE /users/:id
+- Descrição: Exclui usuário (soft delete).
+- Acesso: `SUPERVISOR`
+- Parâmetros:
+  - `id` (number, obrigatório)
+- Resposta `200/204`: sem conteúdo
+- Regras:
+  - Um `SUPERVISOR` só remove `BARBER` — remover `ADMIN`/`SUPERVISOR` retorna `403`.
+  - Ninguém pode remover o próprio usuário (`403`).
+  - Não é possível remover o último `ADMIN` ativo (`403`).
+
+---
+
 ## Resumo rápido para o front
 
 - Prefixos:
@@ -476,6 +562,7 @@ Campos (todos opcionais, todos string):
   - `/products`
   - `/sales`
   - `/settings`
+  - `/users`
 
 - Rotas padrão por módulo:
   - `GET /`
@@ -489,4 +576,6 @@ Campos (todos opcionais, todos string):
   - `settings` é linha única: só `GET /settings` e `PATCH /settings`, sem `:id`.
   - `sales` não tem `PATCH`.
   - `products` e `sales` usam hard delete; os demais módulos usam soft delete (`deletedAt`).
-  - `appointments GET /appointments` filtra por profissional autenticado (`user.id`).
+  - `appointments GET /appointments` filtra por profissional autenticado (`user.id`), com `deletedAt = null` e `status != CANCELLED`.
+  - `appointments PATCH /appointments/:id` aceita `BARBER`, mas só no próprio agendamento; nunca aceita campos de cancelamento/cobrança nem `status`.
+  - `users` nunca devolve `passwordHash`; `POST/PATCH /users` não aceita `creatorUserId`.

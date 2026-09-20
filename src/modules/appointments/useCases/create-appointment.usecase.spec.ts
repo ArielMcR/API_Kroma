@@ -14,12 +14,23 @@ const SEXTA_DENTRO_DA_SEMANA = () => {
   return date;
 };
 
-// Próximo dia (a partir de amanhã, dentro do limite de 7 dias) que não seja sexta nem sábado
-const DIA_NAO_PERMITIDO_DENTRO_DO_LIMITE = () => {
+// Próximo domingo (a partir de amanhã, dentro do limite de 7 dias) — único dia não permitido (RN01)
+const PROXIMO_DOMINGO_DENTRO_DO_LIMITE = () => {
   const date = new Date();
   date.setHours(0, 0, 0, 0);
   date.setDate(date.getDate() + 1);
-  while (date.getDay() === 5 || date.getDay() === 6) {
+  while (date.getDay() !== 0) {
+    date.setDate(date.getDate() + 1);
+  }
+  return date;
+};
+
+// Próxima terça-feira (a partir de amanhã, dentro do limite de 7 dias) — dia útil permitido (RN01)
+const PROXIMA_TERCA_DENTRO_DO_LIMITE = () => {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + 1);
+  while (date.getDay() !== 2) {
     date.setDate(date.getDate() + 1);
   }
   return date;
@@ -86,11 +97,21 @@ describe('CreateAppointmentUseCase', () => {
 
   it('rejeita agendamento em dia não permitido (RN01)', async () => {
     const data = baseData();
-    data.appointmentDate = DIA_NAO_PERMITIDO_DENTRO_DO_LIMITE();
+    data.appointmentDate = PROXIMO_DOMINGO_DENTRO_DO_LIMITE();
 
     await expect(useCase.execute(data)).rejects.toThrow(
-      'Agendamentos só são permitidos às sextas e sábados',
+      'Agendamentos só são permitidos de segunda a sábado',
     );
+  });
+
+  it('aceita agendamento numa terça-feira dentro dos 7 dias (RN01)', async () => {
+    const data = baseData();
+    data.appointmentDate = PROXIMA_TERCA_DENTRO_DO_LIMITE();
+
+    const result = await useCase.execute(data);
+
+    expect(appointmentRepoMock.createAppointment).toHaveBeenCalled();
+    expect(result).toHaveProperty('id');
   });
 
   it('rejeita agendamento fora dos horários permitidos (RN02)', async () => {

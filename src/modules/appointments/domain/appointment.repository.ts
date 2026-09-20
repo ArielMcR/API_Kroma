@@ -48,6 +48,12 @@ export type UpdateAppointmentData = Partial<
  */
 export type UpdateAppointmentInput = Omit<UpdateAppointmentData, 'services'> & {
   serviceIds?: number[];
+  /**
+   * Injetado pelo InjectUserBodyInterceptor a partir do JWT — nunca confiar
+   * num valor mandado pelo cliente. Usado só para checar se um BARBER está
+   * editando o próprio agendamento; não é persistido.
+   */
+  userId?: number;
 };
 
 export interface AppointmentRepository {

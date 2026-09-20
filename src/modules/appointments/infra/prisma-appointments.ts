@@ -86,8 +86,18 @@ export class PrismaAppointmentsRepository implements AppointmentRepository {
   }
 
   async getAllAppointments(professionalId: number): Promise<Appointment[]> {
+    // O app passa a cancelar via POST /appointments/:id/cancel em vez de
+    // DELETE. Cancelado usa soft delete (`deletedAt`)? Nao — precisa continuar
+    // com `deletedAt: null` para nao sumir de `getAttendanceReport` e
+    // `getRevenueReport` (que filtram so por `deletedAt`), senao a multa da
+    // RN05 e a marca de cancelamento desapareceriam dos relatorios. Por isso
+    // quem esconde da agenda e o filtro de `status`, igual ao `getByDate`.
     return this.prisma.appointment.findMany({
-      where: { professionalId, deletedAt: null },
+      where: {
+        professionalId,
+        deletedAt: null,
+        status: { not: 'CANCELLED' },
+      },
       include: { client: true, ...INCLUDE_SERVICOS },
     }) as Promise<Appointment[]>;
   }

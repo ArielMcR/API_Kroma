@@ -21,6 +21,8 @@ export class CreateUserDTO extends PartialType(UserDTO) {
   @IsString()
   readonly role!: keyof typeof UserRoles;
 
-  @IsNotEmpty({ message: 'O campo creatorUserId é obrigatório' })
-  readonly creatorUserId!: number;
+  // Quem criou o usuário vem só do JWT (`userId` injetado pelo
+  // InjectUserBodyInterceptor) — não existe campo de `creatorUserId` no
+  // contrato porque aceitar esse dado do cliente permite escalonar
+  // privilégio (RN de segurança).
 }

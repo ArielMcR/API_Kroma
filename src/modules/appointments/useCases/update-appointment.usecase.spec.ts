@@ -1,6 +1,8 @@
 import { HttpException } from '@nestjs/common';
 import type { AppointmentRepository } from '../domain/appointment.repository';
 import type { ServicesRepository } from 'src/modules/services/domain/services.repository';
+import type { UserRepository } from 'src/modules/users/domain/user.repository';
+import type { User } from 'src/modules/users/domain/user.entity';
 import { UpdateAppointmentUseCase } from './update-appointment.usecase';
 import type { Appointment } from '../domain/appointment.entity';
 
@@ -8,12 +10,32 @@ describe('UpdateAppointmentUseCase', () => {
   let useCase: UpdateAppointmentUseCase;
   let appointmentRepoMock: jest.Mocked<AppointmentRepository>;
   let servicesRepoMock: jest.Mocked<ServicesRepository>;
+  let userRepoMock: jest.Mocked<UserRepository>;
+
+  const barberDono = {
+    id: 1,
+    name: 'Barbeiro Dono',
+    role: 'BARBER',
+  } as unknown as User;
+  const outroBarber = {
+    id: 9,
+    name: 'Outro Barbeiro',
+    role: 'BARBER',
+  } as unknown as User;
+  const admin = { id: 2, name: 'Admin', role: 'ADMIN' } as unknown as User;
 
   const currentAppointment: Appointment = {
     id: 1,
     clientId: 1,
     services: [
-      { id: 1, appointmentId: 1, serviceId: 1, unitPrice: 50, durationMinutes: 30, position: 0 },
+      {
+        id: 1,
+        appointmentId: 1,
+        serviceId: 1,
+        unitPrice: 50,
+        durationMinutes: 30,
+        position: 0,
+      },
     ],
     professionalId: 1,
     appointmentDate: new Date('2026-04-10T00:00:00'),
@@ -49,9 +71,20 @@ describe('UpdateAppointmentUseCase', () => {
       getAllServices: jest.fn(),
       findByName: jest.fn(),
     };
+    userRepoMock = {
+      createUser: jest.fn(),
+      findByEmail: jest.fn(),
+      getUserById: jest.fn(),
+      getAllUsers: jest.fn(),
+      updateUser: jest.fn(),
+      deleteUser: jest.fn(),
+      getUserByName: jest.fn(),
+      countActiveAdmins: jest.fn(),
+    };
     useCase = new UpdateAppointmentUseCase(
       appointmentRepoMock,
       servicesRepoMock,
+      userRepoMock,
     );
   });
 
@@ -156,5 +189,58 @@ describe('UpdateAppointmentUseCase', () => {
     await expect(
       useCase.execute(999, { startTime: '14:00' }),
     ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('BARBER editando agendamento de outro profissional é rejeitado com 403 (RF09)', async () => {
+    userRepoMock.getUserById.mockResolvedValue(outroBarber);
+
+    await expect(
+      useCase.execute(1, { startTime: '14:00', userId: outroBarber.id }),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(appointmentRepoMock.updateAppointment).not.toHaveBeenCalled();
+  });
+
+  it('BARBER editando o próprio agendamento passa (RF09)', async () => {
+    userRepoMock.getUserById.mockResolvedValue(barberDono);
+
+    await useCase.execute(1, { startTime: '14:00', userId: barberDono.id });
+
+    expect(appointmentRepoMock.updateAppointment).toHaveBeenCalled();
+  });
+
+  it('ADMIN editando agendamento de outro profissional passa livre (RF09)', async () => {
+    userRepoMock.getUserById.mockResolvedValue(admin);
+
+    await useCase.execute(1, { startTime: '14:00', userId: admin.id });
+
+    expect(appointmentRepoMock.updateAppointment).toHaveBeenCalled();
+  });
+
+  it('BARBER não move o agendamento para a agenda de outro profissional (RF07)', async () => {
+    userRepoMock.getUserById.mockResolvedValue(barberDono);
+
+    await useCase.execute(1, {
+      startTime: '14:00',
+      userId: barberDono.id,
+      professionalId: outroBarber.id,
+    });
+
+    const [, payload] = appointmentRepoMock.updateAppointment.mock.calls[0];
+    expect(payload.professionalId).toBe(currentAppointment.professionalId);
+  });
+
+  it('tentativa de mandar chargeAmount, chargeRegistered, cancelledLate ou status no PATCH não chega ao repositório', async () => {
+    await useCase.execute(1, {
+      chargeAmount: 999,
+      chargeRegistered: true,
+      cancelledLate: true,
+      status: 'CANCELLED',
+    } as any);
+
+    const [, payload] = appointmentRepoMock.updateAppointment.mock.calls[0];
+    expect(payload).not.toHaveProperty('chargeAmount');
+    expect(payload).not.toHaveProperty('chargeRegistered');
+    expect(payload).not.toHaveProperty('cancelledLate');
+    expect(payload).not.toHaveProperty('status');
   });
 });

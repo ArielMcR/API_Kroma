@@ -150,13 +150,14 @@ Definido em `src/modules/auth/domain/roles-hierarchy.ts`.
 - `@Public()`: decorator em `auth/presentation/decorators/public.decorator.ts` — marca rotas que nao precisam de autenticacao (ex: login)
 
 ### users
-- **GET /users** — lista usuarios
-- **GET /users/:id** — busca usuario por id
-- **POST /users** — cria usuario (requer ADMIN)
-- **PATCH /users/:id** — atualiza usuario (requer ADMIN)
-- **DELETE /users/:id** — soft delete (requer ADMIN)
+- **GET /users** — lista usuarios (requer SUPERVISOR)
+- **GET /users/:id** — busca usuario por id (requer SUPERVISOR)
+- **POST /users** — cria usuario (requer SUPERVISOR; SUPERVISOR so cadastra BARBER, ADMIN cadastra qualquer papel)
+- **PATCH /users/:id** — atualiza usuario (requer SUPERVISOR; mesma restricao de papel do POST)
+- **DELETE /users/:id** — soft delete (requer SUPERVISOR; SUPERVISOR so remove BARBER; nenhum papel pode remover a si mesmo nem o ultimo ADMIN ativo)
 - Repositorio: `PrismaUserRepository` injetado como token `"UserRepository"`
 - `CreateUserUseCase` injeta `BcryptService` e faz hash da senha automaticamente antes de salvar
+- O criador do usuario (`creatorUserId` persistido) vem **sempre** do `userId` injetado pelo JWT via `InjectUserBodyInterceptor` — nao existe campo `creatorUserId` no DTO de entrada (aceitar isso do cliente permitia escalonamento de privilegio)
 
 ### clients
 - **GET /clients** — lista clientes
@@ -216,7 +217,7 @@ cumprida por ausencia. **Ao adicionar uma funcao nova, nunca exponha operacao de
 `executarFuncao`, devolvida ao Gemini como `functionResponse` e virada frase; grava
 `EXECUTION_ERROR` **com `toolExecuted` preenchido**. O `catch` externo trata so falha de infra
 (Gemini fora, 429, timeout) e grava com `toolExecuted: null`. Essa distincao e o que faz
-"agenda pra terca" responder "so atendemos sexta e sabado" em vez de "erro, tente novamente".
+"agenda pro domingo" responder "nao atendemos aos domingos" em vez de "erro, tente novamente".
 
 **Todo comando e gravado em `AssistantCommand`**, inclusive os que falharam — e a base das metricas
 de avaliacao do TCC (§7 do PRD).

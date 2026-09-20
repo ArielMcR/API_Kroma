@@ -5,6 +5,7 @@ import type {
   UpdateAppointmentInput,
 } from '../domain/appointment.repository';
 import type { ServicesRepository } from 'src/modules/services/domain/services.repository';
+import type { UserRepository } from 'src/modules/users/domain/user.repository';
 import { AppointmentScheduleValidator } from '../domain/appointment-schedule.validator';
 import { AppointmentServicesResolver } from '../domain/appointment-services.resolver';
 
@@ -15,6 +16,8 @@ export class UpdateAppointmentUseCase {
     private readonly appointmentRepository: AppointmentRepository,
     @Inject('ServiceRepository')
     private readonly servicesRepository: ServicesRepository,
+    @Inject('UserRepository')
+    private readonly userRepository: UserRepository,
   ) {}
 
   async execute(id: number, data: UpdateAppointmentInput) {
@@ -23,10 +26,29 @@ export class UpdateAppointmentUseCase {
       throw new HttpException('Appointment not found', HttpStatus.NOT_FOUND);
     }
 
-    // `serviceIds` nao vai adiante: o repositorio persiste `services`.
-    const { serviceIds, endTime: _endTimeIgnorado, ...resto } = data;
+    // RF09: BARBER só edita os próprios agendamentos — ADMIN e SUPERVISOR
+    // seguem livres. `data.userId` vem do JWT via InjectUserBodyInterceptor,
+    // nunca é decidido pelo cliente.
+    let editorEBarbeiro = false;
+    if (data.userId) {
+      const editor = await this.userRepository.getUserById(data.userId);
+      editorEBarbeiro = editor?.role === 'BARBER';
+      if (editorEBarbeiro && current.professionalId !== data.userId) {
+        throw new HttpException(
+          'Você só pode editar os próprios agendamentos.',
+          HttpStatus.FORBIDDEN,
+        );
+      }
+    }
 
-    const professionalId = data.professionalId ?? current.professionalId;
+    const { serviceIds } = data;
+
+    // RF07: cada profissional tem a própria agenda — BARBER não pode
+    // transferir o atendimento para outro colega mandando professionalId.
+    // Troca liberada só para SUPERVISOR/ADMIN.
+    const professionalId = editorEBarbeiro
+      ? current.professionalId
+      : (data.professionalId ?? current.professionalId);
     const appointmentDate = data.appointmentDate
       ? AppointmentScheduleValidator.parseAppointmentDate(data.appointmentDate)
       : current.appointmentDate;
@@ -68,8 +90,13 @@ export class UpdateAppointmentUseCase {
       );
     }
 
+    // Projeção explícita dos campos aceitos pelo PATCH: nada de espalhar o
+    // body inteiro no payload. Cancelamento e cobrança (`cancelledAt`,
+    // `cancelledLate`, `chargeRegistered`, `chargeAmount`) e `status` nunca
+    // vêm por aqui — quem escreve neles é o Cancel/CompleteAppointmentUseCase.
     const payload: UpdateAppointmentData = {
-      ...resto,
+      ...(data.clientId !== undefined ? { clientId: data.clientId } : {}),
+      professionalId,
       appointmentDate,
       startTime,
       endTime,

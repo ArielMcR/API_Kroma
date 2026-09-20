@@ -11,7 +11,10 @@ export class MeUseCase {
     });
 
     if (!user || !user.active) {
-      throw new HttpException('Usuario invalido ou inativo', HttpStatus.UNAUTHORIZED);
+      throw new HttpException(
+        'Usuario invalido ou inativo',
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     const settings = await this.prisma.settings.findFirst();
