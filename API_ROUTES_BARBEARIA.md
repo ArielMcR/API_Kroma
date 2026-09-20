@@ -91,7 +91,7 @@ Prefixo: `/clients`
 
 Campos:
 - `name` (string, obrigatório)
-- `lastName` (string, obrigatório na validação atual)
+- `lastName` (string, **opcional** desde 2026-09-20 — a coluna sempre foi `String?`; antes a validação exigia)
 - `cellPhone` (string, obrigatório)
 
 Resposta `201/200`: objeto `Client` criado.

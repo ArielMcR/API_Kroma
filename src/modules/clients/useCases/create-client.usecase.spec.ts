@@ -55,4 +55,62 @@ describe('CreateClientUseCase', () => {
       'Referência inválida (FK)',
     );
   });
+
+  it('cria cliente sem sobrenome (sobrenome não é mais obrigatório)', async () => {
+    const semSobrenome: CreateClientData = {
+      name: 'Carlos',
+      cellPhone: '11988887777',
+    };
+    clientRepoMock.createClient.mockResolvedValue({
+      id: 2,
+      ...semSobrenome,
+    });
+
+    const result = await useCase.execute(semSobrenome);
+
+    expect(clientRepoMock.createClient).toHaveBeenCalledWith(semSobrenome);
+    expect(clientRepoMock.createClient.mock.calls[0][0]).not.toHaveProperty(
+      'lastName',
+    );
+    expect(result).toMatchObject({ id: 2, name: 'Carlos' });
+  });
+
+  it('normaliza celular mascarado para apenas dígitos antes de gravar', async () => {
+    const mascarado: CreateClientData = {
+      ...baseData,
+      cellPhone: '(11) 98888-7777',
+    };
+    clientRepoMock.createClient.mockResolvedValue({ id: 3, ...baseData });
+
+    await useCase.execute(mascarado);
+
+    expect(clientRepoMock.createClient).toHaveBeenCalledWith({
+      ...baseData,
+      cellPhone: '11988887777',
+    });
+  });
+
+  it('mantém celular já em dígitos crus inalterado', async () => {
+    clientRepoMock.createClient.mockResolvedValue({ id: 4, ...baseData });
+
+    await useCase.execute(baseData);
+
+    expect(clientRepoMock.createClient).toHaveBeenCalledWith({
+      ...baseData,
+      cellPhone: '11988887777',
+    });
+  });
+
+  it('rejeita celular que fica vazio após normalizar (RN não numerada — campo obrigatório)', async () => {
+    const semDigitos: CreateClientData = {
+      ...baseData,
+      cellPhone: '()  -',
+    };
+
+    await expect(useCase.execute(semDigitos)).rejects.toThrow(HttpException);
+    await expect(useCase.execute(semDigitos)).rejects.toThrow(
+      'O celular do cliente é obrigatório.',
+    );
+    expect(clientRepoMock.createClient).not.toHaveBeenCalled();
+  });
 });

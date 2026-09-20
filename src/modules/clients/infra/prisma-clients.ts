@@ -13,18 +13,24 @@ export class PrismaClientsRepository implements ClientRepository {
   constructor(private readonly prisma: PrismaService) {}
   async createClient(data: CreateClientData): Promise<any> {
     try {
-      delete data.userId;
-      return await this.prisma.client.create({ data });
+      const { name, lastName, cellPhone } = data;
+      return await this.prisma.client.create({
+        data: { name, lastName, cellPhone },
+      });
     } catch (error) {
       handlePrismaError(error);
     }
   }
   async updateClient(data: UpdateClientData, id: number): Promise<any> {
     try {
-      delete data.userId;
+      const projectedData: UpdateClientData = {};
+      if (data.name !== undefined) projectedData.name = data.name;
+      if (data.lastName !== undefined) projectedData.lastName = data.lastName;
+      if (data.cellPhone !== undefined)
+        projectedData.cellPhone = data.cellPhone;
       return await this.prisma.client.update({
         where: { id },
-        data,
+        data: projectedData,
       });
     } catch (error) {
       handlePrismaError(error);
