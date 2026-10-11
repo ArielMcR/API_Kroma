@@ -21,6 +21,7 @@
     "test:unit": "jest --config jest.unit.config.ts",
     "pretest:integration": "node scripts/migrate-test-db.js",
     "test:integration": "jest --config jest.integration.config.ts --runInBand",
+    "eval:llm": "ts-node -r tsconfig-paths/register eval/runner.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "ts-node prisma/seeds.ts",

@@ -58,3 +58,10 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 pnpm-lock.yaml
 
+
+# Avaliacao do modulo de linguagem natural (TCC).
+# Tudo em eval/ e instrumentacao descartavel, EXCETO o dataset: ele fica
+# versionado porque a coluna `commit_dataset` do CSV aponta para o commit
+# dele. Sem isso a avaliacao deixa de ser auditavel.
+eval/*
+!eval/comandos.ts
