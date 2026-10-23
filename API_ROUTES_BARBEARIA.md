@@ -17,6 +17,7 @@ Base URL local:
 ### Autenticação
 - A API usa JWT Bearer Token globalmente.
 - Todas as rotas abaixo exigem `Authorization: Bearer <token>`.
+- O token **não expira**. Usuário apagado ou desativado recebe `401` em qualquer rota, mesmo com um token válido.
 - Exceções públicas (ex.: login) não fazem parte deste documento.
 
 ### Controle de acesso por perfil

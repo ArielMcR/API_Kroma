@@ -143,6 +143,19 @@ Definido em `src/modules/auth/domain/roles-hierarchy.ts`.
   Payload do JWT: `{ sub, id, name, email, role }`
 - `LocalStrategy`: `usernameField: 'name'`, `passwordField: 'password'`
 - `JwtStrategy`: extrai token do header `Authorization: Bearer`, popula `request.user`
+- **Token nao expira** (decisao de 2026-10-22: o app publicado nao trata 401 com a sessao aberta).
+  O `JwtModule` assina sem `expiresIn` e o `JwtStrategy` usa `ignoreExpiration: true` para que os
+  tokens antigos, emitidos com `exp`, tambem sejam aceitos. **A revogacao e a consulta ao banco:**
+  a cada requisicao o `validate` chama `UserRepository.getUserById` e devolve 401 se o usuario foi
+  apagado ou esta `active: false`. O `request.user` (`id, name, email, role`) vem do banco, nao do
+  payload, entao uma troca de papel vale na hora.
+  - O `select` de `getUserById` precisa manter `active`. Sem ele, ninguem mais acessa a API. E nunca
+    pode trazer `passwordHash`.
+  - **Limites conhecidos:** a troca de senha (`PATCH /auth/change-password`) nao derruba tokens
+    antigos. Reativar um usuario devolve a validade aos tokens antigos dele. Para derrubar o token
+    de quem continua na equipe, a saida e trocar o `JWT_SECRET`, o que desloga todo mundo. Se isso
+    virar problema: coluna `tokenVersion`/`passwordChangedAt` comparada com `payload.iat` (exige
+    migration).
 - **GET /auth/me** — `{ user, settings }`
 - **PATCH /auth/change-password**
 - `RolesGuard`: verifica hierarquia de roles via decorator `@Roles()`

@@ -23,8 +23,9 @@ import { obterJwtSecret } from './domain/jwt-secret';
     JwtModule.register({
       // Sem fallback: assinar com um segredo fixo do repositorio deixaria a
       // API "funcionando" em producao com token forjavel por qualquer um.
+      // Sem `expiresIn`: o token nao expira por decisao do produto. A
+      // revogacao e a checagem no banco feita pelo JwtStrategy.
       secret: obterJwtSecret(),
-      signOptions: { expiresIn: '1d' },
     }),
   ],
   providers: [
